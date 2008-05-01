@@ -1,0 +1,190 @@
+
+Copyright 2000-2006 Guglielmo Lichtner (lichtner_at_bway_dot_net)
+
+License
+-------
+
+See the file called LICENSE in this directory.
+
+Credits
+-------
+Paul Kendall (testing, code review, bug fixes)
+Samant Maharaj (testing, code review, bug fixes)
+
+About
+-----
+
+EVS4J is a pure-Java(tm) implementation of the totem single ring protocol:
+
+"The Totem Single-Ring Ordering and Membership Protocol",
+Y. Amir, L. E. Moser, P. M. Melliar-Smith, D. A. Agarwal, and P. Ciarfella, 
+ACM Transactions on Computer Systems 13, 4 (November 1995), 311-342.
+
+NOTE: The flow control algorithm in this article uses a fixed window size.
+      I found that this would make it impossible to use the same
+      network for anything else, so I implemented congestion control.
+      Now the window backs off nicely when needed. A maximum window size is
+      still required.
+
+Features:
+
+- Group membership (configuration) service
+- Reliable multicast
+- Total ordering
+- Flow control
+- Congestion control
+- Recovery of messages when a processor fails or joins
+
+WARNING: Using multicasting on your LAN can take away precious bandwidth from
+others on the network and create huge delays. Do not try this code on your LAN
+unless you know that the packets won't end up on some production network (and
+sometimes this happens by mistake.) Talk to your sys admin.
+
+Usage
+-----
+
+To use this protocol you need to the following:
+
+1. Pick integer ids for the nodes in your cluster, e.g. 1,2,3.
+2. Pick a port number to send multicast packets on.
+3. Pick a multicast address.
+4. If you have more than one adapter on each node pick one subnet you want to use.
+5. Get an instance of a Connection object.
+6. (Probably) create a Listener object.
+7. Call open() on the connection.
+
+Some time after open() returns, the method Listener.onConfiguration() is called.
+This is to notify the application that a configuration (a ring, or group) has been created.
+After this you can expect to receive messages through the onMessage() method.
+
+See the API documentation and src/Example.java for an example.
+
+Configuration parameters
+------------------------
+
+The class which implements evs4j.Connection is:
+
+evs4j.impl.SRPConnection
+
+The constructor has the signature:
+
+SRPConnection(long, Processor, String)
+
+The first parameter can be zero 0 when running a test, but in a real application it should
+be the id of the last configuration used before the system was shut down. This id should be
+forced to disk in Listener.onConfiguration() and it should be read from disk when creating
+a new connection.
+
+The second parameter is a Processor object with an arbitrary integer id which must be
+unique across the cluster. This id could be generated from the ip address of each,
+but that will depend on each cluster.
+
+The third parameter is a string containing name value pairs using '=' between name and
+value and '&' between pairs, for example:
+
+"port=9100&ip=224.0.0.1&nic=192.168.254.0/255.255.255.0"
+
+This is the complete list of properties:
+
+port			The port number used on multicast packets. Required.
+
+ip			The _multicast_ ip address used, e.g. 224.0.0.1. Required.
+
+nic			The network interface to be used. This can be either of the form
+			###.###.###.###/###.###.###.###, e.g. 192.168.254.0/255.255.255.0
+			or the 'name' of the interface, e.g eth0. This property is required
+			only when the machine has more than one network adapter installed.
+			This is the proper behavior because the EVS4J benchmark creates a
+		        multicast storm and we don't want to do that to the wrong network.
+
+windowSize		The _maximum_ window size (number of messages) to be used for
+			flow control. The window size at any given moment varies between
+			0 and this value. The window size will decrease automatically
+			(following the Van Jacobson et al. protocol) if you start ftp
+			file transfers etc. on the same network. In a production
+			environment you might consider using a dedicated network.
+			You can use this parameter and the size of the ring to tune
+			latency and throughput.
+			Optional. The default is 30.
+
+tokenDroppedTimeout	A timeout in milliseconds used to determine if the token
+			was dropped by the network or by the receiver's buffer and
+			needs to be re-sent. See totem article for details.
+			Optional. The default is 3.
+
+tokenLossTimeout	A timeout in milliseconds used to determine if the token
+			was dropped because one of the processor _failed_. When
+			this timeout expires the remaining processors attempt to
+			form a new configuration. See totem article for details.
+			Optional. The default is 1000.
+
+joinTimeout		Analogous to tokenDroppedTimeout but applies to the membership
+			protocol. See totem article for details.
+			Optional. The default is 3.
+
+consensusTimeout	Analogous to tokenLossTimeout but applies to the membership
+			protocol. See totem article for details.
+			Optional. The default is 1000.
+
+Known issues
+------------
+
+Under certain conditions on Linux the network card (or cards) have to be
+configured specifically to support certain multicast addresses. If you are
+not receiving any packets this may be the reason.
+
+Support
+-------
+
+There is no commercial support for this code, however you can try me at
+lichtner_at_bway_dot_net if you like.
+
+Benchmark
+---------
+
+The following command runs 2 processors both sending and receiving 1450-byte packets in one JVM:
+
+java -classpath evs4j.jar \
+     -Xincgc -client \
+     evs4j.tool.benchmark.Main \
+     -props "port=9100&ip=224.0.0.1&nic=192.168.254.0/255.255.255.0" \
+     -procs 1 2
+
+- Hardware:
+
+Intel(R) Pentium(R) 4 1400Mhz
+400Mhz FSB
+256 Rambus Memory
+i850 Chipset
+Intel(R) Pro 100 Network Adapter
+Linux Kernel 2.6.14-1.1653_FC4
+jdk1.5.0_06-b05
+
+- Output:
+
+Installed transitional configuration: [4294967299 {1}]
+Installed regular configuration: [4294967301 {1}]
+Installed transitional configuration: [8589934595 {2}]
+Installed regular configuration: [8589934597 {2}]
+Installed transitional configuration: [4294967303 {1, 2}]
+Installed regular configuration: [4294967305 {1, 2}]
+Installed transitional configuration: [4294967303 {1, 2}]
+Installed regular configuration: [4294967305 {1, 2}]
+   throughput = 7,320 messages/s
+rotation time = 2 ms
+       window = 30 messages
+retransmitted = 0 messages
+
+   throughput = 7,151 messages/s
+rotation time = 2 ms
+       window = 30 messages
+retransmitted = 0 messages
+
+   throughput = 7,140 messages/s
+rotation time = 2 ms
+       window = 30 messages
+retransmitted = 0 messages
+
+- We see that the average latency is 2ms / 2 = 1ms, and the average throughput is
+about 7200 1450-byte messages per second, or about 83 Mbps.
+

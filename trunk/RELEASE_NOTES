@@ -1,0 +1,36 @@
+
+EVS4J 1.0b3
+-----------
+
+Incorrectly handled case of 2 network adapters. Should have forced user to
+specify one, but didn't. Fixed.
+
+Paul Kendall and Samant Maharaj sent in a patch for two bugs, one being a bug in
+the code that collected free nodes in the message buffer and put them back in the
+free list (a 6-line change) and the other a bug in updating the last safe message id.
+Legal note: on 3/2/2006 Paul assigned the copyright to me (Guglielmo Lichtner) on
+behalf of himself and Samant Maharaj.
+
+EVS4J 1.0b2
+-----------
+
+On Linux 2.6.x with ipv6 support the nic-finding code threw an exception. Fixed.
+
+On Windows XP when you bring an adapter down it seem to disappear entirely.
+Added code to report to handle this case more informatively.
+
+In SRPRecovery.java there was a FIXME about delivering messages from the
+transitional processors _only_. Fixed.
+
+EVS4J 1.0b1
+-----------
+
+First release since around January 2004 (0.9.1).
+
+Deprecated EVS4J project in SourceForge because it uses CVS which is
+hard to administer. I am using my own Subversion repository now. I have
+removed a lot of code and done some refactorings to simplify the system
+as much as possible.
+
+Changed the license. This code is now licensed under the Apache License,
+version 2.0.
